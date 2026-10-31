@@ -215,11 +215,11 @@
           <div>
             <div class="panel-title-row">
               <h2 class="panel-title">5-Phase Quant Progression Presets</h2>
-              <span class="badge-pill" id="sync-status-badge" style="background: rgba(52, 211, 153, 0.16); border-color: #059669; color: var(--green-text);">● Cloud Sync Ready</span>
+              <span class="badge-pill" id="sync-status-badge" style="background: rgba(52, 211, 153, 0.16); border-color: #059669; color: var(--green-text);">● Connecting Cloud...</span>
             </div>
-            <p class="panel-sub">Names are automatically normalized (e.g., "ayyan" & "Ayyan" merge together) with individual user averages.</p>
+            <p class="panel-sub">Real-time cross-device sync via public cloud storage. Case-insensitive user tracking ("Ayyan" = "ayyan").</p>
           </div>
-          <div style="display: flex; gap: 8px; align-items: center;">
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <span style="font-family: var(--mono); font-size: 0.75rem; color: var(--text-muted);">Team Room:</span>
             <input type="text" id="team-room-input" class="num-input" style="width: 130px; text-align: left;" value="maryam-team" onchange="updateTeamRoom()" />
           </div>
@@ -338,12 +338,14 @@
         </div>
 
         <div class="panel" style="margin-bottom: 0;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
             <div>
               <h3 style="margin: 0; font-size: 1.02rem;">Team Speed Drills (<span id="total-runs-count">0</span>)</h3>
-              <p style="margin: 2px 0 0 0; font-size: 0.78rem; color: var(--text-muted);">Live cloud sync between phone & laptop</p>
+              <p style="margin: 2px 0 0 0; font-size: 0.78rem; color: var(--text-muted);" id="last-sync-txt">Live cloud sync between phone & laptop</p>
             </div>
-            <button class="btn-ghost" onclick="syncWithCloud(false)">🔄 Sync Now</button>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn-ghost" onclick="syncWithCloud(true)">🔄 Force Sync</button>
+            </div>
           </div>
           <div id="history-container" style="color: var(--text-muted); font-size: 0.85rem; padding: 18px 0; text-align: center; max-height: 280px; overflow-y: auto;">
             Syncing team history...
@@ -390,8 +392,6 @@
   </main>
 
 <script>
-  const CLOUD_BUCKET = '6N9p2K4x8V1m5Q7w3R9t2Y';
-
   const PHASES = {
     1: { name: 'Foundation Recall', goal: 30, add: [2, 100], mul: [2, 12, 2, 12], tag: 'Phase 1 (2-12 × 2-12)', desc: 'Master instant recall of 2–12 multiplication tables.' },
     2: { name: 'Extended Tables', goal: 40, add: [2, 100], mul: [2, 20, 2, 20], tag: 'Phase 2 (2-20 × 2-20)', desc: 'Lock in perfect squares up to 20² and 13–20 tables.' },
@@ -417,7 +417,6 @@
   let activeDeck = [];
   let deckIdx = 0;
 
-  // Normalizes "ayyan", "AYYAN", "Ayyan " -> "Ayyan"
   function normalizeName(raw) {
     const clean = (raw || '').trim().replace(/\s+/g, ' ');
     if (!clean) return '';
@@ -432,8 +431,13 @@
     return `qm_cloud_cache_${getRoomClean()}`;
   }
 
-  function getCloudUrl() {
-    return `https://kvdb.io/${CLOUD_BUCKET}/qm_room_${getRoomClean()}`;
+  // Uses a deterministic key on keyvalue.immanuel.co (public CORS-enabled key-value store, no pre-registration required)
+  function getCloudGetUrl() {
+    return `https://keyvalue.immanuel.co/api/KeyVal/GetValue/qm_app_v2_99x/${getRoomClean()}`;
+  }
+
+  function getCloudSetUrl(encodedVal) {
+    return `https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/qm_app_v2_99x/${getRoomClean()}/${encodedVal}`;
   }
 
   function setSyncBadge(text, state) {
@@ -458,13 +462,17 @@
     const map = new Map();
     [...(localArr || []), ...(remoteArr || [])].forEach(item => {
       if (!item) return;
-      const normUser = normalizeName(item.user) || 'User';
-      const id = item.id || `${normUser.toLowerCase()}_${item.date}_${item.score}`;
-      map.set(id, { ...item, user: normUser, id, ts: item.ts || 0 });
+      const normUser = normalizeName(item.u || item.user) || 'User';
+      const dateStr = item.d || item.date || '';
+      const sc = Number(item.s !== undefined ? item.s : item.score) || 0;
+      const ph = item.p || item.phase || 'Phase 1';
+      const ts = item.t || item.ts || 0;
+      const id = item.id || `${normUser.toLowerCase()}_${dateStr}_${sc}`;
+      map.set(id, { id, ts, date: dateStr, user: normUser, phase: ph, score: sc });
     });
     return Array.from(map.values())
       .sort((a, b) => (b.ts || 0) - (a.ts || 0))
-      .slice(0, 60);
+      .slice(0, 45);
   }
 
   function mergeBottlenecks(localArr, remoteArr) {
@@ -472,7 +480,7 @@
     [...(localArr || []), ...(remoteArr || [])].forEach(item => {
       if (item && item.f) map.set(item.f, item);
     });
-    return Array.from(map.values()).slice(0, 100);
+    return Array.from(map.values()).slice(0, 40);
   }
 
   function saveLocalPrefs() {
@@ -508,16 +516,36 @@
     refreshStats();
   }
 
+  // Compresses state into a URL-safe base64 string for fast GET/POST key-value storage
+  function encodeCloudPayload(hist, bns) {
+    const compactH = hist.slice(0, 30).map(h => ({
+      id: h.id, t: h.ts, d: h.date, u: h.user, p: h.phase, s: h.score
+    }));
+    const compactB = bns.slice(0, 20);
+    const json = JSON.stringify({ h: compactH, b: compactB });
+    return btoa(encodeURIComponent(json)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function decodeCloudPayload(str) {
+    if (!str || typeof str !== 'string') return null;
+    const cleaned = str.replace(/^"+|"+$/g, '').replace(/-/g, '+').replace(/_/g, '/');
+    if (!cleaned) return null;
+    const json = decodeURIComponent(atob(cleaned));
+    return JSON.parse(json);
+  }
+
   async function syncWithCloud(pushChanges = false) {
     setSyncBadge('● Syncing Cloud...', 'syncing');
-    const url = getCloudUrl();
 
     try {
-      const res = await fetch(url, { cache: 'no-store' });
+      const res = await fetch(getCloudGetUrl(), { cache: 'no-store' });
       if (res.ok) {
-        const remoteData = await res.json();
-        history = mergeHistories(history, remoteData.history);
-        bottlenecks = mergeBottlenecks(bottlenecks, remoteData.bottlenecks);
+        const rawText = await res.text();
+        const decoded = decodeCloudPayload(rawText);
+        if (decoded) {
+          history = mergeHistories(history, decoded.h);
+          bottlenecks = mergeBottlenecks(bottlenecks, decoded.b);
+        }
       }
     } catch (e) {}
 
@@ -526,14 +554,17 @@
 
     if (pushChanges || history.length > 0) {
       try {
-        await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ history, bottlenecks, updatedAt: Date.now() })
-        });
-        setSyncBadge('● Live Cloud Synced', 'ok');
+        const encoded = encodeCloudPayload(history, bottlenecks);
+        const pushRes = await fetch(getCloudSetUrl(encoded), { method: 'POST' });
+        if (pushRes.ok) {
+          setSyncBadge('● Live Cloud Synced', 'ok');
+          const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          document.getElementById('last-sync-txt').textContent = `Last cloud sync: ${nowStr}`;
+        } else {
+          setSyncBadge('● Cloud Push Error', 'err');
+        }
       } catch (e) {
-        setSyncBadge('● Saved Locally (Offline)', 'err');
+        setSyncBadge('● Offline / Local Only', 'err');
       }
     } else {
       setSyncBadge('● Live Cloud Synced', 'ok');
@@ -665,7 +696,7 @@
       document.getElementById('username-input').value = user;
       const stamp = `${now.toLocaleDateString([], { month: 'short', day: 'numeric' })} • ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
       const newEntry = {
-        id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        id: `${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         ts: Date.now(),
         date: stamp,
         user: user,
@@ -680,7 +711,6 @@
   }
 
   function refreshStats() {
-    // Ensure all loaded history items have normalized user names
     history = history.map(r => ({ ...r, user: normalizeName(r.user) || 'User' }));
 
     const goal = PHASES[activePhase].goal;
@@ -692,7 +722,6 @@
     document.getElementById('side-progress-bar').style.width = `${Math.min(100, (avg / goal) * 100)}%`;
     document.getElementById('total-runs-count').textContent = history.length;
 
-    // Group scores by normalized user name
     const userMap = {};
     history.forEach(r => {
       const u = r.user;
@@ -702,7 +731,6 @@
 
     const userNames = Object.keys(userMap);
 
-    // Populate Topbar Individual User Averages
     const topUsersEl = document.getElementById('top-user-averages');
     if (userNames.length > 0) {
       topUsersEl.innerHTML = userNames.map(u => {
@@ -718,7 +746,6 @@
       topUsersEl.innerHTML = '';
     }
 
-    // Populate Left Panel Per-User Breakdown
     const breakdownBox = document.getElementById('user-breakdown-box');
     if (userNames.length > 0) {
       breakdownBox.innerHTML = `<div style="font-family: var(--mono); font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">Individual User Averages</div>` +
@@ -744,7 +771,6 @@
       breakdownBox.innerHTML = '';
     }
 
-    // Populate History Table
     const hBox = document.getElementById('history-container');
     if (!history.length) {
       hBox.innerHTML = 'No team drills recorded yet. Run your first round!';
@@ -817,12 +843,12 @@
   }
 
   loadLocalPrefs();
-  syncWithCloud(false);
+  syncWithCloud(true);
   setInterval(() => {
     if (document.getElementById('arena-box').style.display === 'none') {
       syncWithCloud(false);
     }
-  }, 20000);
+  }, 15000);
 </script>
 </body>
 </html>
