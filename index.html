@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QuantMath — Cloud-Synced Drive Edition</title>
+  <style>
+    :root {
+      --bg-body: #141518;
+      --bg-topbar: #1c1d22;
+      --bg-panel: #1f2127;
+      --bg-card: #282a32;
+      --bg-card-hover: #31343e;
+      --bg-input: #17181c;
+      --border: #3a3d48;
+      --border-light: #4e5260;
+      --red-main: #e11d48;
+      --red-hover: #f43f5e;
+      --red-soft: rgba(225, 29, 72, 0.16);
+      --red-border: #be123c;
+      --red-text: #fb7185;
+      --green-text: #34d399;
+      --text-main: #f4f4f6;
+      --text-muted: #9ca3af;
+      --mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg-body);
+      color: var(--text-main);
+      font-family: var(--sans);
+      min-height: 100vh;
+    }
+
+    .topbar {
+      background: var(--bg-topbar);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sigma-logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: var(--red-soft);
+      border: 1px solid var(--red-border);
+      color: var(--red-text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.3rem;
+      font-family: var(--mono);
+    }
+
+    .brand-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-name { font-weight: 800; font-size: 1.15rem; letter-spacing: -0.3px; }
+    .badge-pill {
+      background: var(--red-soft);
+      border: 1px solid var(--red-border);
+      color: var(--red-text);
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+    .brand-sub { font-size: 0.76rem; color: var(--text-muted); margin-top: 2px; }
+
+    .nav-pills {
+      display: flex;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      padding: 4px;
+      border-radius: 10px;
+      gap: 4px;
+    }
+
+    .nav-btn {
+      background: transparent;
+      color: var(--text-muted);
+      border: none;
+      padding: 8px 16px;
+      border-radius: 7px;
+      font-size: 0.86rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .nav-btn:hover { color: var(--text-main); background: var(--bg-card); }
+    .nav-btn.active { background: var(--red-main); color: #ffffff; box-shadow: 0 2px 10px rgba(225, 29, 72, 0.35); }
+
+    .top-metrics { display: flex; gap: 24px; align-items: center; }
+    .metric-col { text-align: right; }
+    .metric-label { font-size: 0.68rem; font-family: var(--mono); color: var(--text-muted); text-transform: uppercase; }
+    .metric-val { font-size: 1.05rem; font-family: var(--mono); font-weight: 800; color: var(--text-main); margin-top: 2px; }
+    .metric-val.crimson { color: var(--red-text); }
+
+    .main-wrap { max-width: 1180px; margin: 22px auto; padding: 0 20px 40px 20px; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    .panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px;
+      margin-bottom: 20px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .panel-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .panel-title { font-size: 1.15rem; font-weight: 700; margin: 0; }
+    .panel-sub { font-size: 0.83rem; color: var(--text-muted); margin: 4px 0 0 0; }
+    .link-action { color: var(--red-text); font-size: 0.82rem; font-family: var(--mono); text-decoration: underline; cursor: pointer; background: none; border: none; padding: 0; }
+
+    .phase-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+    @media (max-width: 960px) { .phase-row { grid-template-columns: repeat(2, 1fr); } }
+
+    .phase-box {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border);
+      border-radius: 11px;
+      padding: 13px;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .phase-box:hover { background: var(--bg-card-hover); border-color: var(--border-light); }
+    .phase-box.active {
+      background: linear-gradient(160deg, rgba(225, 29, 72, 0.18) 0%, var(--bg-card) 100%);
+      border-color: var(--red-main);
+      box-shadow: 0 0 16px rgba(225, 29, 72, 0.2);
+    }
+
+    .phase-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .phase-num { font-family: var(--mono); font-size: 0.72rem; font-weight: 700; color: var(--red-text); text-transform: uppercase; }
+    .goal-pill { background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); font-family: var(--mono); font-size: 0.68rem; padding: 2px 6px; border-radius: 5px; font-weight: 700; }
+    .phase-title { font-size: 0.9rem; font-weight: 700; margin-bottom: 5px; color: #ffffff; }
+    .phase-meta { font-family: var(--mono); font-size: 0.72rem; color: var(--text-muted); }
+
+    .ops-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+    @media (max-width: 780px) { .ops-grid { grid-template-columns: 1fr; } }
+
+    .op-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 11px; padding: 16px; }
+    .op-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .op-check-label { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 0.95rem; cursor: pointer; }
+    .op-check-label input[type="checkbox"] { accent-color: var(--red-main); width: 17px; height: 17px; cursor: pointer; }
+    .op-tag { font-family: var(--mono); font-size: 0.74rem; color: var(--text-muted); }
+    .op-tag.highlight { color: var(--red-text); }
+
+    .op-range-line { display: flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 0.82rem; color: var(--text-muted); flex-wrap: wrap; }
+    .num-input {
+      width: 64px;
+      padding: 6px 8px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-light);
+      border-radius: 6px;
+      color: var(--text-main);
+      font-family: var(--mono);
+      font-weight: 700;
+      text-align: center;
+      font-size: 0.85rem;
+    }
+    .num-input:focus { outline: none; border-color: var(--red-main); }
+    .op-desc-text { font-size: 0.82rem; color: var(--text-muted); margin: 4px 0 0 0; line-height: 1.45; }
+
+    .controls-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; padding-top: 8px; border-top: 1px solid var(--border); }
+    .select-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .ctrl-label { font-family: var(--mono); font-size: 0.74rem; color: var(--text-muted); text-transform: uppercase; }
+    .select-input { background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-light); padding: 9px 12px; border-radius: 8px; font-family: var(--mono); font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+
+    .btn-launch {
+      background: var(--red-main);
+      color: #ffffff;
+      border: 1px solid var(--red-hover);
+      padding: 11px 22px;
+      border-radius: 9px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 16px rgba(225, 29, 72, 0.35);
+      transition: all 0.18s;
+    }
+    .btn-launch:hover { background: var(--red-hover); transform: translateY(-1px); }
+    .kbd-tag { background: rgba(0, 0, 0, 0.3); padding: 2px 7px; border-radius: 5px; font-family: var(--mono); font-size: 0.74rem; }
+
+    .bottom-split { display: grid; grid-template-columns: 340px 1fr; gap: 20px; }
+    @media (max-width: 860px) { .bottom-split { grid-template-columns: 1fr; } }
+
+    .progress-track { width: 100%; height: 8px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 99px; overflow: hidden; margin-top: 8px; }
+    .progress-fill { height: 100%; background: var(--red-main); width: 0%; transition: width 0.3s; }
+
+    .btn-ghost {
+      background: var(--bg-card);
+      color: var(--text-muted);
+      border: 1px solid var(--border-light);
+      padding: 6px 11px;
+      border-radius: 7px;
+      font-size: 0.76rem;
+      font-family: var(--mono);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-ghost:hover { color: #ffffff; border-color: var(--red-main); }
+
+    #arena-box { display: none; text-align: center; padding: 36px 20px; }
+    .arena-hud { display: flex; justify-content: space-between; align-items: center; max-width: 580px; margin: 0 auto 30px auto; background: var(--bg-card); border: 1px solid var(--border-light); padding: 12px 20px; border-radius: 10px; font-family: var(--mono); }
+    .arena-q { font-size: 3.6rem; font-weight: 800; font-family: var(--mono); margin: 24px 0; color: #ffffff; }
+    .arena-input {
+      width: 220px;
+      font-size: 2.2rem;
+      font-family: var(--mono);
+      padding: 10px;
+      text-align: center;
+      background: var(--bg-input);
+      border: 2px solid var(--red-main);
+      border-radius: 12px;
+      color: #ffffff;
+      font-weight: 700;
+      outline: none;
+      box-shadow: 0 0 20px rgba(225, 29, 72, 0.25);
+    }
+
+    .deck-selector { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+    .deck-chip { background: var(--bg-card); border: 1px solid var(--border-light); color: var(--text-main); padding: 8px 14px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+    .deck-chip.active { background: var(--red-main); border-color: var(--red-hover); color: #ffffff; }
+
+    .dojo-card {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-light);
+      border-radius: 14px;
+      min-height: 240px;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      cursor: pointer;
+      margin-bottom: 16px;
+    }
+
+    .history-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; font-family: var(--mono); }
+    .history-table th, .history-table td { padding: 9px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand-group">
+      <div class="sigma-logo">Σ</div>
+      <div>
+        <div class="brand-title-row">
+          <span class="brand-name">QuantMath</span>
+          <span class="badge-pill" id="top-phase-badge">PHASE 1</span>
+        </div>
+        <div class="brand-sub">Cloud-Synced Speed Drill & Dojo</div>
+      </div>
+    </div>
+
+    <nav class="nav-pills">
+      <button class="nav-btn active" id="nav-drill" onclick="switchView('drill')">⚡ Speed Drill</button>
+      <button class="nav-btn" id="nav-dojo" onclick="switchView('dojo')">🧠 Flashcard Dojo</button>
+      <button class="nav-btn" id="nav-roadmap" onclick="switchView('roadmap')">🗺️ 5-Phase Roadmap</button>
+    </nav>
+
+    <div class="top-metrics">
+      <div class="metric-col">
+        <div class="metric-label">7-DAY AVG</div>
+        <div class="metric-val crimson" id="top-avg">--</div>
+      </div>
+      <div class="metric-col">
+        <div class="metric-label">PHASE TARGET</div>
+        <div class="metric-val" id="top-target">30.0</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-wrap">
+
+    <div id="view-drill" class="tab-pane active">
+      <div class="panel" id="setup-panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title-row">
+              <h2 class="panel-title">5-Phase Quant Progression Presets</h2>
+              <span class="badge-pill" id="cloud-status" style="background: rgba(52, 211, 153, 0.16); border-color: #059669; color: var(--green-text);">● Cloud Ready</span>
+            </div>
+            <p class="panel-sub">Select your training phase. Click Google Drive Sync below to save your history permanently to your Google account.</p>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-ghost" style="color: var(--green-text); border-color: var(--green-text);" onclick="syncToDrive()">☁️ Sync to Google Drive</button>
+            <button class="link-action" onclick="switchView('roadmap')">Blueprint →</button>
+          </div>
+        </div>
+
+        <div class="phase-row">
+          <div class="phase-box active" id="pbox-1" onclick="applyPhase(1)">
+            <div class="phase-top"><span class="phase-num">PHASE 1</span><span class="goal-pill">Goal: 30+</span></div>
+            <div class="phase-title">Foundation Recall</div>
+            <div class="phase-meta">Add 2-100 • Mult 2-12</div>
+          </div>
+          <div class="phase-box" id="pbox-2" onclick="applyPhase(2)">
+            <div class="phase-top"><span class="phase-num">PHASE 2</span><span class="goal-pill">Goal: 40+</span></div>
+            <div class="phase-title">Extended Tables</div>
+            <div class="phase-meta">Add 2-100 • Mult 2-20</div>
+          </div>
+          <div class="phase-box" id="pbox-3" onclick="applyPhase(3)">
+            <div class="phase-top"><span class="phase-num">PHASE 3</span><span class="goal-pill">Goal: 50+</span></div>
+            <div class="phase-title">Standard Zetamac</div>
+            <div class="phase-meta">Add 2-100 • 2-12 × 2-100</div>
+          </div>
+          <div class="phase-box" id="pbox-4" onclick="applyPhase(4)">
+            <div class="phase-top"><span class="phase-num">PHASE 4</span><span class="goal-pill">Goal: 65+</span></div>
+            <div class="phase-title">Prop Trading Hard</div>
+            <div class="phase-meta">Add 10-500 • 2-20 × 2-100</div>
+          </div>
+          <div class="phase-box" id="pbox-5" onclick="applyPhase(5)">
+            <div class="phase-top"><span class="phase-num">PHASE 5</span><span class="goal-pill">Goal: 80+</span></div>
+            <div class="phase-title">Insane Quant God</div>
+            <div class="phase-meta">Add 100-1k • 11-99 × 11-99</div>
+          </div>
+        </div>
+
+        <div class="ops-grid">
+          <div class="op-card">
+            <div class="op-card-head">
+              <label class="op-check-label"><input type="checkbox" id="add-en" checked onchange="saveState()"> Addition</label>
+              <span class="op-tag">Left-to-Right Chunking</span>
+            </div>
+            <div class="op-range-line">
+              Range: ( <input type="number" class="num-input" id="add-min1" value="2" onchange="saveState()"> to
+              <input type="number" class="num-input" id="add-max1" value="100" onchange="saveState()"> ) + (
+              <input type="number" class="num-input" id="add-min2" value="2" onchange="saveState()"> to
+              <input type="number" class="num-input" id="add-max2" value="100" onchange="saveState()"> )
+            </div>
+          </div>
+
+          <div class="op-card">
+            <div class="op-card-head">
+              <label class="op-check-label"><input type="checkbox" id="sub-en" checked onchange="saveState()"> Subtraction</label>
+              <span class="op-tag">Reverse Addition</span>
+            </div>
+            <p class="op-desc-text">Addition problems in reverse. Subtract left-to-right in chunks to eliminate borrowing.</p>
+          </div>
+
+          <div class="op-card">
+            <div class="op-card-head">
+              <label class="op-check-label"><input type="checkbox" id="mul-en" checked onchange="saveState()"> Multiplication</label>
+              <span class="op-tag highlight" id="mul-phase-tag">Phase 1 (2-12 × 2-12)</span>
+            </div>
+            <div class="op-range-line">
+              Range: ( <input type="number" class="num-input" id="mul-min1" value="2" onchange="saveState()"> to
+              <input type="number" class="num-input" id="mul-max1" value="12" onchange="saveState()"> ) × (
+              <input type="number" class="num-input" id="mul-min2" value="2" onchange="saveState()"> to
+              <input type="number" class="num-input" id="mul-max2" value="12" onchange="saveState()"> )
+            </div>
+          </div>
+
+          <div class="op-card">
+            <div class="op-card-head">
+              <label class="op-check-label"><input type="checkbox" id="div-en" checked onchange="saveState()"> Division</label>
+              <span class="op-tag">Reverse Multiplication</span>
+            </div>
+            <p class="op-desc-text">Multiplication problems in reverse. Instant factor recognition without remainders.</p>
+          </div>
+        </div>
+
+        <div class="controls-bar">
+          <div class="select-group">
+            <span class="ctrl-label">DURATION:</span>
+            <select class="select-input" id="duration-sel" onchange="saveState()">
+              <option value="60">60 seconds</option>
+              <option value="120" selected>120 seconds (Zetamac)</option>
+              <option value="180">180 seconds</option>
+            </select>
+            <span class="ctrl-label" style="margin-left: 10px;">TRIGGER:</span>
+            <select class="select-input" id="trigger-sel" onchange="saveState()">
+              <option value="3.5" selected>> 3.5 sec</option>
+              <option value="5.0">> 5.0 sec</option>
+            </select>
+          </div>
+          <button class="btn-launch" onclick="startDrill()">Start 120s Drill <span class="kbd-tag">Enter ↵</span></button>
+        </div>
+      </div>
+
+      <div class="panel" id="arena-box">
+        <div class="arena-hud">
+          <span>TIME LEFT: <b id="live-timer" style="color: var(--red-text);">120</b>s</span>
+          <span>SCORE: <b id="live-score" style="color: #ffffff;">0</b></span>
+          <button class="btn-ghost" onclick="stopDrill(true)">Save & End Round</button>
+        </div>
+        <div class="arena-q" id="live-q">12 × 8</div>
+        <input type="text" class="arena-input" id="live-input" autocomplete="off" inputmode="numeric" />
+        <div id="live-bailout" style="min-height: 26px; margin-top: 12px; color: var(--red-text); font-family: var(--mono); font-size: 0.9rem;"></div>
+        <p style="color: var(--text-muted); font-size: 0.82rem; margin-top: 12px;">Stuck for >3s? Press <b>Spacebar</b> to reveal answer & send to Dojo.</p>
+      </div>
+
+      <div class="bottom-split">
+        <div class="panel" style="margin-bottom: 0;">
+          <div style="display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.75rem; margin-bottom: 8px;">
+            <span style="color: var(--red-text); font-weight: 700;" id="side-phase-lbl">PHASE 1 ACTIVE</span>
+            <span style="color: var(--text-muted);" id="side-phase-name">Foundation Recall</span>
+          </div>
+          <h3 style="margin: 0 0 8px 0; font-size: 1.05rem;" id="side-target-title">Target: 30+ Score</h3>
+          <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 18px;" id="side-phase-desc">
+            Master instant recall of 2–12 multiplication tables before widening ranges.
+          </p>
+          <div style="display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.78rem;">
+            <span style="color: var(--text-muted);">7-Day Avg vs Target</span>
+            <span style="color: var(--red-text); font-weight: 700;" id="side-progress-txt">0.0 / 30</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" id="side-progress-bar"></div></div>
+        </div>
+
+        <div class="panel" style="margin-bottom: 0;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div>
+              <h3 style="margin: 0; font-size: 1.02rem;">Recent Speed Drills (<span id="total-runs-count">0</span>)</h3>
+              <p style="margin: 2px 0 0 0; font-size: 0.78rem; color: var(--text-muted);">Cloud-backed history</p>
+            </div>
+            <button class="btn-ghost" onclick="clearHistory()">Reset History</button>
+          </div>
+          <div id="history-container" style="color: var(--text-muted); font-size: 0.85rem; padding: 18px 0; text-align: center; max-height: 230px; overflow-y: auto;">
+            No drills recorded yet. Run your first round!
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-dojo" class="tab-pane">
+      <div class="panel">
+        <h2 class="panel-title" style="margin-bottom: 6px;">🧠 Spaced Repetition Flashcard Dojo</h2>
+        <p class="panel-sub" style="margin-bottom: 18px;">Practice your automatic Speed Drill bottlenecks.</p>
+        <div class="deck-selector">
+          <button class="deck-chip active" onclick="selectDeck('bottlenecks', this)">🔥 My Drill Bottlenecks (<span id="dojo-bn-count">0</span>)</button>
+          <button class="deck-chip" onclick="selectDeck('p1', this)">Phase 1: 2–12 Tables</button>
+          <button class="deck-chip" onclick="selectDeck('p2', this)">Phase 2: Squares</button>
+          <button class="deck-chip" onclick="selectDeck('p3', this)">Phase 3: Fractions</button>
+          <button class="deck-chip" onclick="selectDeck('p4', this)">Phase 4: Cubes</button>
+          <button class="deck-chip" onclick="selectDeck('p5', this)">Phase 5: Algorithms</button>
+        </div>
+        <div class="dojo-card" onclick="flipDojoCard()">
+          <div style="font-family: var(--mono); font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px;">CLICK TO FLIP</div>
+          <div id="dojo-front" style="font-size: 2.6rem; font-weight: 800; font-family: var(--mono);">8 × 7</div>
+          <div id="dojo-back" style="display: none; font-size: 2rem; font-weight: 800; color: var(--red-text); margin-top: 10px; font-family: var(--mono);">56</div>
+          <div id="dojo-hint" style="display: none; font-size: 0.88rem; color: var(--text-muted); margin-top: 8px;">5, 6, 7, 8 → 56</div>
+        </div>
+        <div id="dojo-controls" style="display: none; justify-content: center; gap: 12px;">
+          <button class="btn-ghost" style="padding: 10px 20px; border-color: var(--red-main); color: var(--red-text);" onclick="gradeCard(false)">Hard</button>
+          <button class="btn-launch" style="padding: 10px 24px;" onclick="gradeCard(true)">Mastered</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-roadmap" class="tab-pane">
+      <div class="panel">
+        <h2 class="panel-title" style="margin-bottom: 14px;">🗺️ Complete 4-Year Quant Arithmetic Blueprint</h2>
+        <div style="display: grid; gap: 12px;">
+          <div class="op-card"><b style="color: var(--red-text);">Phase 1: Foundation (Goal: 30+)</b><p class="op-desc-text">Eliminate hesitation on 2–12 tables and left-to-right addition.</p></div>
+          <div class="op-card"><b style="color: var(--red-text);">Phase 2: Squares (Goal: 40+)</b><p class="op-desc-text">Memorize squares from 11² to 30².</p></div>
+          <div class="op-card"><b style="color: var(--red-text);">Phase 3: Standard Zetamac (Goal: 50+)</b><p class="op-desc-text">Unlock 2–12 × 2–100 ranges.</p></div>
+          <div class="op-card"><b style="color: var(--red-text);">Phase 4: Prop Trading Hard (Goal: 65+)</b><p class="op-desc-text">Drill cubes up to 15³ and powers of 2.</p></div>
+          <div class="op-card"><b style="color: var(--red-text);">Phase 5: Insane Quant God (Goal: 80+)</b><p class="op-desc-text">Execute Difference of Squares and Base-100 multiplication.</p></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+<script>
+  const STORAGE_KEY = 'QM_DRIVE_SYNC_STATE_V4';
+  const DRIVE_FILE_NAME = 'quant_math_progress.json';
+
+  const PHASES = {
+    1: { name: 'Foundation Recall', goal: 30, add: [2, 100], mul: [2, 12, 2, 12], tag: 'Phase 1 (2-12 × 2-12)', desc: 'Master instant recall of 2–12 multiplication tables.' },
+    2: { name: 'Extended Tables', goal: 40, add: [2, 100], mul: [2, 20, 2, 20], tag: 'Phase 2 (2-20 × 2-20)', desc: 'Lock in perfect squares up to 30².' },
+    3: { name: 'Standard Zetamac', goal: 50, add: [2, 100], mul: [2, 12, 2, 100], tag: 'Phase 3 (2-12 × 2-100)', desc: 'Classic quant interview benchmark.' },
+    4: { name: 'Prop Trading Hard', goal: 65, add: [10, 500], mul: [2, 20, 2, 100], tag: 'Phase 4 (2-20 × 2-100)', desc: 'High-speed addition and wide multiplication.' },
+    5: { name: 'Insane Quant God', goal: 80, add: [100, 1000], mul: [11, 99, 11, 99], tag: 'Phase 5 (11-99 × 11-99)', desc: 'Full 2-digit mental multiplication.' }
+  };
+
+  const DECKS = {
+    p1: [{ f: '8 × 7', b: '56', h: '5, 6, 7, 8 → 56' }, { f: '9 × 7', b: '63', h: '70 − 7 = 63' }],
+    p2: [{ f: '17²', b: '289', h: '17 × 17 = 289' }, { f: '18²', b: '324', h: '18 × 18 = 324' }],
+    p3: [{ f: '3 / 8', b: '0.375', h: '3 × 0.125 = 0.375' }],
+    p4: [{ f: '7³', b: '343', h: '49 × 7 = 343' }],
+    p5: [{ f: '43 × 37', b: '1591', h: '40² − 3² = 1591' }]
+  };
+
+  let activePhase = 1;
+  let history = [];
+  let bottlenecks = [];
+  let timer = null;
+  let timeLeft = 120;
+  let score = 0;
+  let curQ = null;
+  let qStart = 0;
+  let bailed = false;
+  let activeDeck = [];
+  let deckIdx = 0;
+
+  function saveState() {
+    const payload = {
+      phase: activePhase,
+      addEn: document.getElementById('add-en').checked,
+      subEn: document.getElementById('sub-en').checked,
+      mulEn: document.getElementById('mul-en').checked,
+      divEn: document.getElementById('div-en').checked,
+      addMin1: +document.getElementById('add-min1').value,
+      addMax1: +document.getElementById('add-max1').value,
+      addMin2: +document.getElementById('add-min2').value,
+      addMax2: +document.getElementById('add-max2').value,
+      mulMin1: +document.getElementById('mul-min1').value,
+      mulMax1: +document.getElementById('mul-max1').value,
+      mulMin2: +document.getElementById('mul-min2').value,
+      mulMax2: +document.getElementById('mul-max2').value,
+      duration: +document.getElementById('duration-sel').value,
+      trigger: +document.getElementById('trigger-sel').value,
+      history: history.slice(0, 50),
+      bottlenecks: bottlenecks.slice(0, 100)
+    };
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); } catch (e) {}
+  }
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        activePhase = data.phase || 1;
+        document.querySelectorAll('.phase-box').forEach(b => b.classList.remove('active'));
+        const box = document.getElementById('pbox-' + activePhase);
+        if (box) box.classList.add('active');
+        document.getElementById('add-en').checked = data.addEn ?? true;
+        document.getElementById('sub-en').checked = data.subEn ?? true;
+        document.getElementById('mul-en').checked = data.mulEn ?? true;
+        document.getElementById('div-en').checked = data.divEn ?? true;
+        document.getElementById('add-min1').value = data.addMin1 ?? 2;
+        document.getElementById('add-max1').value = data.addMax1 ?? 100;
+        document.getElementById('add-min2').value = data.addMin2 ?? 2;
+        document.getElementById('add-max2').value = data.addMax2 ?? 100;
+        document.getElementById('mul-min1').value = data.mulMin1 ?? 2;
+        document.getElementById('mul-max1').value = data.mulMax1 ?? 12;
+        document.getElementById('mul-min2').value = data.mulMin2 ?? 2;
+        document.getElementById('mul-max2').value = data.mulMax2 ?? 12;
+        document.getElementById('duration-sel').value = data.duration ?? 120;
+        document.getElementById('trigger-sel').value = data.trigger ?? 3.5;
+        history = Array.isArray(data.history) ? data.history : [];
+        bottlenecks = Array.isArray(data.bottlenecks) ? data.bottlenecks : [];
+      }
+    } catch (e) {}
+    updatePhaseUI();
+  }
+
+  /* Google Drive File Export Sync */
+  function syncToDrive() {
+    saveState();
+    const payload = localStorage.getItem(STORAGE_KEY);
+    const blob = new Blob([payload], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = DRIVE_FILE_NAME;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    alert('Downloaded cloud backup file ("quant_math_progress.json")! Save this file directly into your Google Drive folder. Whenever you change computers, just drag and drop it back in.');
+  }
+
+  function switchView(v) {
+    document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('view-' + v).classList.add('active');
+    document.getElementById('nav-' + v).classList.add('active');
+    if (v === 'dojo') {
+      document.getElementById('dojo-bn-count').textContent = bottlenecks.length;
+      if (!activeDeck.length) selectDeck('bottlenecks', document.querySelector('.deck-chip'));
+    }
+  }
+
+  function applyPhase(p) {
+    activePhase = p;
+    const info = PHASES[p];
+    document.querySelectorAll('.phase-box').forEach(b => b.classList.remove('active'));
+    document.getElementById('pbox-' + p).classList.add('active');
+    document.getElementById('add-min1').value = info.add[0];
+    document.getElementById('add-max1').value = info.add[1];
+    document.getElementById('add-min2').value = info.add[0];
+    document.getElementById('add-max2').value = info.add[1];
+    document.getElementById('mul-min1').value = info.mul[0];
+    document.getElementById('mul-max1').value = info.mul[1];
+    document.getElementById('mul-min2').value = info.mul[2];
+    document.getElementById('mul-max2').value = info.mul[3];
+    updatePhaseUI();
+    saveState();
+  }
+
+  function updatePhaseUI() {
+    const info = PHASES[activePhase];
+    document.getElementById('top-phase-badge').textContent = `PHASE ${activePhase}`;
+    document.getElementById('top-target').textContent = info.goal.toFixed(1);
+    document.getElementById('mul-phase-tag').textContent = info.tag;
+    document.getElementById('side-phase-lbl').textContent = `PHASE ${activePhase} ACTIVE`;
+    document.getElementById('side-phase-name').textContent = info.name;
+    document.getElementById('side-target-title').textContent = `Target: ${info.goal}+ Score`;
+    document.getElementById('side-phase-desc').textContent = info.desc;
+    refreshStats();
+  }
+
+  function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+  function genQuestion() {
+    const ops = [];
+    if (document.getElementById('add-en').checked) ops.push('add');
+    if (document.getElementById('sub-en').checked) ops.push('sub');
+    if (document.getElementById('mul-en').checked) ops.push('mul');
+    if (document.getElementById('div-en').checked) ops.push('div');
+    if (!ops.length) ops.push('add');
+
+    const op = ops[Math.floor(Math.random() * ops.length)];
+    let a, b, f, ans, h;
+    if (op === 'add') {
+      a = rand(+document.getElementById('add-min1').value, +document.getElementById('add-max1').value);
+      b = rand(+document.getElementById('add-min2').value, +document.getElementById('add-max2').value);
+      f = `${a} + ${b}`; ans = a + b; h = `Left-to-right chunking`;
+    } else if (op === 'sub') {
+      a = rand(+document.getElementById('add-min1').value, +document.getElementById('add-max1').value);
+      b = rand(+document.getElementById('add-min2').value, +document.getElementById('add-max2').value);
+      f = `${a + b} − ${a}`; ans = b; h = `Reverse addition`;
+    } else if (op === 'mul') {
+      a = rand(+document.getElementById('mul-min1').value, +document.getElementById('mul-max1').value);
+      b = rand(+document.getElementById('mul-min2').value, +document.getElementById('mul-max2').value);
+      f = `${a} × ${b}`; ans = a * b; h = `Table recall`;
+    } else {
+      a = rand(+document.getElementById('mul-min1').value, +document.getElementById('mul-max1').value);
+      b = rand(+document.getElementById('mul-min2').value, +document.getElementById('mul-max2').value);
+      f = `${a * b} ÷ ${a}`; ans = b; h = `Reverse mult`;
+    }
+
+    curQ = { f, b: String(ans), h };
+    document.getElementById('live-q').textContent = f;
+    document.getElementById('live-input').value = '';
+    document.getElementById('live-bailout').textContent = '';
+    qStart = performance.now();
+    bailed = false;
+  }
+
+  function startDrill() {
+    saveState();
+    score = 0;
+    timeLeft = +document.getElementById('duration-sel').value || 120;
+    document.getElementById('setup-panel').style.display = 'none';
+    document.getElementById('arena-box').style.display = 'block';
+    document.getElementById('live-score').textContent = score;
+    document.getElementById('live-timer').textContent = timeLeft;
+    genQuestion();
+    document.getElementById('live-input').focus();
+
+    clearInterval(timer);
+    timer = setInterval(() => {
+      timeLeft--;
+      document.getElementById('live-timer').textContent = timeLeft;
+      if (timeLeft <= 0) stopDrill(true);
+    }, 1000);
+  }
+
+  function stopDrill(saveRun = true) {
+    clearInterval(timer);
+    document.getElementById('arena-box').style.display = 'none';
+    document.getElementById('setup-panel').style.display = 'block';
+    if (saveRun) {
+      const now = new Date();
+      const stamp = `${now.toLocaleDateString([], { month: 'short', day: 'numeric' })} • ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      history.unshift({ date: stamp, phase: `Phase ${activePhase}`, score: score });
+      history = history.slice(0, 50);
+      saveState();
+      refreshStats();
+    }
+  }
+
+  function refreshStats() {
+    const goal = PHASES[activePhase].goal;
+    const recent7 = history.slice(0, 7);
+    const avg = recent7.length ? (recent7.reduce((s, x) => s + x.score, 0) / recent7.length).toFixed(1) : '0.0';
+
+    document.getElementById('top-avg').textContent = history.length ? avg : '--';
+    document.getElementById('side-progress-txt').textContent = `${avg} / ${goal}`;
+    document.getElementById('side-progress-bar').style.width = `${Math.min(100, (avg / goal) * 100)}%`;
+    document.getElementById('total-runs-count').textContent = history.length;
+
+    const hBox = document.getElementById('history-container');
+    if (!history.length) {
+      hBox.innerHTML = 'No drills recorded yet. Run your first round!';
+    } else {
+      hBox.innerHTML = `<table class="history-table">
+        <thead><tr><th>#</th><th>Date</th><th>Phase</th><th>Score</th></tr></thead>
+        <tbody>${history.map((r, idx) => `<tr>
+          <td style="color:var(--text-muted);">${history.length - idx}</td>
+          <td>${r.date}</td>
+          <td>${r.phase}</td>
+          <td style="color:var(--red-text);font-weight:700;">${r.score}</td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+    }
+  }
+
+  function clearHistory() {
+    if (!confirm('Clear all saved past attempts?')) return;
+    history = [];
+    saveState();
+    refreshStats();
+  }
+
+  document.getElementById('live-input').addEventListener('keydown', e => {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      bailed = true;
+      document.getElementById('live-bailout').textContent = `Answer: ${curQ.b} (${curQ.h})`;
+    }
+  });
+
+  document.getElementById('live-input').addEventListener('input', e => {
+    if (e.target.value.trim() === curQ.b) {
+      const elapsed = (performance.now() - qStart) / 1000;
+      const limit = +document.getElementById('trigger-sel').value || 3.5;
+      if (elapsed >= limit || bailed) {
+        if (!bottlenecks.some(x => x.f === curQ.f)) {
+          bottlenecks.unshift(curQ);
+          saveState();
+        }
+      }
+      score++;
+      document.getElementById('live-score').textContent = score;
+      genQuestion();
+    }
+  });
+
+  function selectDeck(k, btn) {
+    document.querySelectorAll('.deck-chip').forEach(c => c.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    activeDeck = k === 'bottlenecks'
+      ? (bottlenecks.length ? [...bottlenecks] : [{ f: 'No Bottlenecks Logged', b: 'Run a Speed Drill first!', h: 'Slow problems appear here.' }])
+      : [...DECKS[k]];
+    deckIdx = 0;
+    showDojoCard();
+  }
+
+  function showDojoCard() {
+    const c = activeDeck[deckIdx];
+    document.getElementById('dojo-front').textContent = c.f;
+    document.getElementById('dojo-back').textContent = c.b;
+    document.getElementById('dojo-hint').textContent = c.h;
+    document.getElementById('dojo-back').style.display = 'none';
+    document.getElementById('dojo-hint').style.display = 'none';
+    document.getElementById('dojo-controls').style.display = 'none';
+  }
+
+  function flipDojoCard() {
+    document.getElementById('dojo-back').style.display = 'block';
+    document.getElementById('dojo-hint').style.display = 'block';
+    document.getElementById('dojo-controls').style.display = 'flex';
+  }
+
+  function gradeCard(easy) {
+    if (!easy && activeDeck.length > 1) activeDeck.push(activeDeck[deckIdx]);
+    deckIdx = (deckIdx + 1) % activeDeck.length;
+    showDojoCard();
+  }
+
+  loadState();
+</script>
+</body>
+</html>
