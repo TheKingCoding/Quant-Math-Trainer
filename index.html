@@ -196,7 +196,7 @@
               <h2 class="panel-title">5-Phase Quant Progression Presets</h2>
               <span class="badge-pill" style="background: rgba(52, 211, 153, 0.16); border-color: #059669; color: var(--green-text);">● Fully Linked Presets</span>
             </div>
-            <p class="panel-sub">Click any Phase below to automatically load its exact ranges and goals instantly.</p>
+            <p class="panel-sub">Enter your name and team room, then click any Phase below to start drilling.</p>
           </div>
           <div style="display: flex; gap: 8px; align-items: center;">
             <span style="font-family: var(--mono); font-size: 0.75rem; color: var(--text-muted);">Team Room:</span>
@@ -276,7 +276,7 @@
         <div class="controls-bar">
           <div class="select-group">
             <span class="ctrl-label">USER NAME:</span>
-            <input type="text" id="username-input" class="num-input" style="width: 100px; text-align: left;" value="You" onchange="saveState()" />
+            <input type="text" id="username-input" class="num-input" style="width: 120px; text-align: left;" placeholder="Enter name" oninput="saveState()" />
             <span class="ctrl-label" style="margin-left: 10px;">DURATION:</span>
             <select class="select-input" id="duration-sel" onchange="saveState()">
               <option value="120" selected>120 seconds</option>
@@ -330,4 +330,306 @@
     </div>
 
     <div id="view-dojo" class="tab-pane">
-      <div class="panel
+      <div class="panel">
+        <h2 class="panel-title" style="margin-bottom: 6px;">🧠 Spaced Repetition Flashcard Dojo</h2>
+        <p class="panel-sub" style="margin-bottom: 18px;">Practice shared bottleneck problems.</p>
+        <div class="deck-selector">
+          <button class="deck-chip active" onclick="selectDeck('bottlenecks', this)">🔥 Shared Bottlenecks (<span id="dojo-bn-count">0</span>)</button>
+        </div>
+        <div class="dojo-card" onclick="flipDojoCard()">
+          <div style="font-family: var(--mono); font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px;">CLICK TO FLIP</div>
+          <div id="dojo-front" style="font-size: 2.6rem; font-weight: 800; font-family: var(--mono);">8 × 7</div>
+          <div id="dojo-back" style="display: none; font-size: 2rem; font-weight: 800; color: var(--red-text); margin-top: 10px; font-family: var(--mono);">56</div>
+          <div id="dojo-hint" style="display: none; font-size: 0.88rem; color: var(--text-muted); margin-top: 8px;">5, 6, 7, 8 → 56</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-roadmap" class="tab-pane">
+      <div class="panel">
+        <h2 class="panel-title" style="margin-bottom: 14px;">🗺️ Complete 4-Year Quant Arithmetic Blueprint</h2>
+        <div style="display: grid; gap: 12px;">
+          <div class="op-card"><b style="color: var(--red-text);">Phase 1: Foundation (Goal: 30+)</b></div>
+          <div class="op-card"><b style="color: var(--red-text);">Phase 2: Squares (Goal: 40+)</b></div>
+          <div class="op-card"><b style="color: var(--red-text);">Phase 3: Standard Zetamac (Goal: 50+)</b></div>
+          <div class="op-card"><b style="color: var(--red-text);">Phase 4: Prop Trading Hard (Goal: 65+)</b></div>
+          <div class="op-card"><b style="color: var(--red-text);">Phase 5: Insane Quant God (Goal: 80+)</b></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+<script>
+  const PHASES = {
+    1: { name: 'Foundation Recall', goal: 30, add: [2, 100], mul: [2, 12, 2, 12], tag: 'Phase 1 (2-12 × 2-12)', desc: 'Master instant recall of 2–12 multiplication tables.' },
+    2: { name: 'Extended Tables', goal: 40, add: [2, 100], mul: [2, 20, 2, 20], tag: 'Phase 2 (2-20 × 2-20)', desc: 'Lock in perfect squares up to 30².' },
+    3: { name: 'Standard Zetamac', goal: 50, add: [2, 100], mul: [2, 12, 2, 100], tag: 'Phase 3 (2-12 × 2-100)', desc: 'Classic quant interview benchmark.' },
+    4: { name: 'Prop Trading Hard', goal: 65, add: [10, 500], mul: [2, 20, 2, 100], tag: 'Phase 4 (2-20 × 2-100)', desc: 'High-speed addition and wide multiplication.' },
+    5: { name: 'Insane Quant God', goal: 80, add: [100, 1000], mul: [11, 99, 11, 99], tag: 'Phase 5 (11-99 × 11-99)', desc: 'Full 2-digit mental multiplication.' }
+  };
+
+  let activePhase = 1;
+  let history = [];
+  let bottlenecks = [];
+  let timer = null;
+  let timeLeft = 120;
+  let score = 0;
+  let curQ = null;
+  let qStart = 0;
+  let bailed = false;
+  let activeDeck = [];
+  let deckIdx = 0;
+
+  function getBinKey() {
+    const room = document.getElementById('team-room-input').value.trim().toLowerCase() || 'maryam-team';
+    return `qm_synced_team_${room}`;
+  }
+
+  function fetchCloudData() {
+    const key = getBinKey();
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const data = JSON.parse(raw);
+        history = Array.isArray(data.history) ? data.history : [];
+        bottlenecks = Array.isArray(data.bottlenecks) ? data.bottlenecks : [];
+        if (data.phase) {
+          activePhase = data.phase;
+          applyPhase(activePhase, false);
+        }
+      } else {
+        history = [];
+        bottlenecks = [];
+      }
+    } catch (e) {
+      history = [];
+      bottlenecks = [];
+    }
+
+    // Load saved username preference
+    const savedUser = localStorage.getItem('qm_saved_username');
+    if (savedUser) {
+      document.getElementById('username-input').value = savedUser;
+    }
+
+    refreshStats();
+  }
+
+  function saveState() {
+    const key = getBinKey();
+    const username = document.getElementById('username-input').value.trim();
+    if (username) {
+      localStorage.setItem('qm_saved_username', username);
+    }
+    const payload = {
+      phase: activePhase,
+      history: history.slice(0, 50),
+      bottlenecks: bottlenecks.slice(0, 100)
+    };
+    try {
+      localStorage.setItem(key, JSON.stringify(payload));
+    } catch (e) {}
+  }
+
+  function updateTeamRoom() {
+    fetchCloudData();
+  }
+
+  function switchView(v) {
+    document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('view-' + v).classList.add('active');
+    document.getElementById('nav-' + v).classList.add('active');
+    if (v === 'dojo') {
+      document.getElementById('dojo-bn-count').textContent = bottlenecks.length;
+      if (!activeDeck.length) selectDeck('bottlenecks', document.querySelector('.deck-chip'));
+    }
+  }
+
+  function applyPhase(p, save = true) {
+    activePhase = p;
+    const info = PHASES[p];
+    document.querySelectorAll('.phase-box').forEach(b => b.classList.remove('active'));
+    const box = document.getElementById('pbox-' + p);
+    if (box) box.classList.add('active');
+
+    document.getElementById('add-min1').value = info.add[0];
+    document.getElementById('add-max1').value = info.add[1];
+    document.getElementById('add-min2').value = info.add[0];
+    document.getElementById('add-max2').value = info.add[1];
+
+    document.getElementById('mul-min1').value = info.mul[0];
+    document.getElementById('mul-max1').value = info.mul[1];
+    document.getElementById('mul-min2').value = info.mul[2];
+    document.getElementById('mul-max2').value = info.mul[3];
+
+    updatePhaseUI();
+    if (save) saveState();
+  }
+
+  function updatePhaseUI() {
+    const info = PHASES[activePhase];
+    document.getElementById('top-phase-badge').textContent = `PHASE ${activePhase}`;
+    document.getElementById('top-target').textContent = info.goal.toFixed(1);
+    document.getElementById('mul-phase-tag').textContent = info.tag;
+    document.getElementById('side-phase-lbl').textContent = `PHASE ${activePhase} ACTIVE`;
+    document.getElementById('side-phase-name').textContent = info.name;
+    document.getElementById('side-target-title').textContent = `Target: ${info.goal}+ Score`;
+    document.getElementById('side-phase-desc').textContent = info.desc;
+    refreshStats();
+  }
+
+  function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+  function genQuestion() {
+    const ops = [];
+    if (document.getElementById('add-en').checked) ops.push('add');
+    if (document.getElementById('sub-en').checked) ops.push('sub');
+    if (document.getElementById('mul-en').checked) ops.push('mul');
+    if (document.getElementById('div-en').checked) ops.push('div');
+    if (!ops.length) ops.push('add');
+
+    const op = ops[Math.floor(Math.random() * ops.length)];
+    let a, b, f, ans, h;
+    if (op === 'add') {
+      a = rand(+document.getElementById('add-min1').value, +document.getElementById('add-max1').value);
+      b = rand(+document.getElementById('add-min2').value, +document.getElementById('add-max2').value);
+      f = `${a} + ${b}`; ans = a + b; h = `Left-to-right chunking`;
+    } else if (op === 'sub') {
+      a = rand(+document.getElementById('add-min1').value, +document.getElementById('add-max1').value);
+      b = rand(+document.getElementById('add-min2').value, +document.getElementById('add-max2').value);
+      f = `${a + b} − ${a}`; ans = b; h = `Reverse addition`;
+    } else if (op === 'mul') {
+      a = rand(+document.getElementById('mul-min1').value, +document.getElementById('mul-max1').value);
+      b = rand(+document.getElementById('mul-min2').value, +document.getElementById('mul-max2').value);
+      f = `${a} × ${b}`; ans = a * b; h = `Table recall`;
+    } else {
+      a = rand(+document.getElementById('mul-min1').value, +document.getElementById('mul-max1').value);
+      b = rand(+document.getElementById('mul-min2').value, +document.getElementById('mul-max2').value);
+      f = `${a * b} ÷ ${a}`; ans = b; h = `Reverse mult`;
+    }
+
+    curQ = { f, b: String(ans), h };
+    document.getElementById('live-q').textContent = f;
+    document.getElementById('live-input').value = '';
+    document.getElementById('live-bailout').textContent = '';
+    qStart = performance.now();
+    bailed = false;
+  }
+
+  function startDrill() {
+    const username = document.getElementById('username-input').value.trim();
+    if (!username) {
+      alert('Please enter your User Name before starting the drill!');
+      document.getElementById('username-input').focus();
+      return;
+    }
+    saveState();
+    score = 0;
+    timeLeft = +document.getElementById('duration-sel').value || 120;
+    document.getElementById('setup-panel').style.display = 'none';
+    document.getElementById('arena-box').style.display = 'block';
+    document.getElementById('live-score').textContent = score;
+    document.getElementById('live-timer').textContent = timeLeft;
+    genQuestion();
+    document.getElementById('live-input').focus();
+
+    clearInterval(timer);
+    timer = setInterval(() => {
+      timeLeft--;
+      document.getElementById('live-timer').textContent = timeLeft;
+      if (timeLeft <= 0) stopDrill(true);
+    }, 1000);
+  }
+
+  function stopDrill(saveRun = true) {
+    clearInterval(timer);
+    document.getElementById('arena-box').style.display = 'none';
+    document.getElementById('setup-panel').style.display = 'block';
+    if (saveRun) {
+      const now = new Date();
+      const user = document.getElementById('username-input').value.trim() || 'User';
+      const stamp = `${now.toLocaleDateString([], { month: 'short', day: 'numeric' })} • ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      history.unshift({ date: stamp, user: user, phase: `Phase ${activePhase}`, score: score });
+      history = history.slice(0, 50);
+      saveState();
+      refreshStats();
+    }
+  }
+
+  function refreshStats() {
+    const goal = PHASES[activePhase].goal;
+    const recent7 = history.slice(0, 7);
+    const avg = recent7.length ? (recent7.reduce((s, x) => s + x.score, 0) / recent7.length).toFixed(1) : '0.0';
+
+    document.getElementById('top-avg').textContent = history.length ? avg : '--';
+    document.getElementById('side-progress-txt').textContent = `${avg} / ${goal}`;
+    document.getElementById('side-progress-bar').style.width = `${Math.min(100, (avg / goal) * 100)}%`;
+    document.getElementById('total-runs-count').textContent = history.length;
+
+    const hBox = document.getElementById('history-container');
+    if (!history.length) {
+      hBox.innerHTML = 'No team drills recorded yet. Run your first round!';
+    } else {
+      hBox.innerHTML = `<table class="history-table">
+        <thead><tr><th>User</th><th>Date</th><th>Phase</th><th>Score</th></tr></thead>
+        <tbody>${history.map(r => `<tr>
+          <td style="color:var(--text-main); font-weight:700;">${r.user || 'User'}</td>
+          <td style="color:var(--text-muted);">${r.date}</td>
+          <td>${r.phase}</td>
+          <td style="color:var(--red-text);font-weight:700;">${r.score}</td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+    }
+  }
+
+  document.getElementById('live-input').addEventListener('keydown', e => {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      bailed = true;
+      document.getElementById('live-bailout').textContent = `Answer: ${curQ.b} (${curQ.h})`;
+    }
+  });
+
+  document.getElementById('live-input').addEventListener('input', e => {
+    if (e.target.value.trim() === curQ.b) {
+      const elapsed = (performance.now() - qStart) / 1000;
+      if (elapsed >= 3.5 || bailed) {
+        if (!bottlenecks.some(x => x.f === curQ.f)) {
+          bottlenecks.unshift(curQ);
+          saveState();
+        }
+      }
+      score++;
+      document.getElementById('live-score').textContent = score;
+      genQuestion();
+    }
+  });
+
+  function selectDeck(k, btn) {
+    document.querySelectorAll('.deck-chip').forEach(c => c.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    activeDeck = bottlenecks.length ? [...bottlenecks] : [{ f: 'No Bottlenecks Logged', b: 'Run a Speed Drill first!', h: 'Slow problems appear here.' }];
+    deckIdx = 0;
+    showDojoCard();
+  }
+
+  function showDojoCard() {
+    const c = activeDeck[deckIdx];
+    document.getElementById('dojo-front').textContent = c.f;
+    document.getElementById('dojo-back').textContent = c.b;
+    document.getElementById('dojo-hint').textContent = c.h;
+    document.getElementById('dojo-back').style.display = 'none';
+    document.getElementById('dojo-hint').style.display = 'none';
+  }
+
+  function flipDojoCard() {
+    document.getElementById('dojo-back').style.display = 'block';
+    document.getElementById('dojo-hint').style.display = 'block';
+  }
+
+  fetchCloudData();
+</script>
+</body>
+</html>
