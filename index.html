@@ -65,11 +65,12 @@
     .nav-btn:hover { color: var(--text-main); background: var(--bg-card); }
     .nav-btn.active { background: var(--red-main); color: #ffffff; box-shadow: 0 2px 10px rgba(225, 29, 72, 0.35); }
 
-    .top-metrics { display: flex; gap: 24px; align-items: center; }
+    .top-metrics { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
     .metric-col { text-align: right; }
     .metric-label { font-size: 0.68rem; font-family: var(--mono); color: var(--text-muted); text-transform: uppercase; }
     .metric-val { font-size: 1.05rem; font-family: var(--mono); font-weight: 800; color: var(--text-main); margin-top: 2px; }
     .metric-val.crimson { color: var(--red-text); }
+    .metric-val.emerald { color: var(--green-text); }
 
     .main-wrap { max-width: 1180px; margin: 22px auto; padding: 0 20px 40px 20px; }
     .tab-pane { display: none; }
@@ -131,11 +132,20 @@
     .btn-launch:hover { background: var(--red-hover); transform: translateY(-1px); }
     .kbd-tag { background: rgba(0, 0, 0, 0.3); padding: 2px 7px; border-radius: 5px; font-family: var(--mono); font-size: 0.74rem; }
 
-    .bottom-split { display: grid; grid-template-columns: 340px 1fr; gap: 20px; }
+    .bottom-split { display: grid; grid-template-columns: 360px 1fr; gap: 20px; }
     @media (max-width: 860px) { .bottom-split { grid-template-columns: 1fr; } }
 
     .progress-track { width: 100%; height: 8px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 99px; overflow: hidden; margin-top: 8px; }
     .progress-fill { height: 100%; background: var(--red-main); width: 0%; transition: width 0.3s; }
+
+    .user-stats-list { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); display: grid; gap: 10px; }
+    .user-stat-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px;
+      display: flex; justify-content: space-between; align-items: center; font-family: var(--mono); font-size: 0.78rem;
+    }
+    .user-stat-name { font-weight: 800; color: var(--text-main); font-size: 0.85rem; }
+    .user-stat-runs { color: var(--text-muted); font-size: 0.7rem; margin-left: 6px; }
+    .user-stat-metrics { display: flex; gap: 12px; text-align: right; }
 
     .btn-ghost {
       background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border-light);
@@ -185,6 +195,7 @@
     </nav>
 
     <div class="top-metrics">
+      <div id="top-user-averages" style="display: flex; gap: 18px; align-items: center;"></div>
       <div class="metric-col">
         <div class="metric-label">TEAM 7-DAY AVG</div>
         <div class="metric-val crimson" id="top-avg">--</div>
@@ -206,7 +217,7 @@
               <h2 class="panel-title">5-Phase Quant Progression Presets</h2>
               <span class="badge-pill" id="sync-status-badge" style="background: rgba(52, 211, 153, 0.16); border-color: #059669; color: var(--green-text);">● Cloud Sync Ready</span>
             </div>
-            <p class="panel-sub">Both devices using the same Team Room automatically merge and sync scores in real time.</p>
+            <p class="panel-sub">Names are automatically normalized (e.g., "ayyan" & "Ayyan" merge together) with individual user averages.</p>
           </div>
           <div style="display: flex; gap: 8px; align-items: center;">
             <span style="font-family: var(--mono); font-size: 0.75rem; color: var(--text-muted);">Team Room:</span>
@@ -286,7 +297,7 @@
         <div class="controls-bar">
           <div class="select-group">
             <span class="ctrl-label">USER NAME:</span>
-            <input type="text" id="username-input" class="num-input" style="width: 130px; text-align: left;" placeholder="Enter name" oninput="saveLocalPrefs()" />
+            <input type="text" id="username-input" class="num-input" style="width: 130px; text-align: left;" placeholder="Enter name" onblur="this.value = normalizeName(this.value); saveLocalPrefs();" oninput="saveLocalPrefs()" />
             <span class="ctrl-label" style="margin-left: 10px;">DURATION:</span>
             <select class="select-input" id="duration-sel" onchange="saveLocalPrefs()">
               <option value="120" selected>120 seconds</option>
@@ -314,7 +325,7 @@
             <span style="color: var(--text-muted);" id="side-phase-name">Foundation Recall</span>
           </div>
           <h3 style="margin: 0 0 8px 0; font-size: 1.05rem;" id="side-target-title">Target: 30+ Score</h3>
-          <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 18px;" id="side-phase-desc">
+          <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 14px;" id="side-phase-desc">
             Master instant recall of 2–12 multiplication tables.
           </p>
           <div style="display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.78rem;">
@@ -322,6 +333,8 @@
             <span style="color: var(--red-text); font-weight: 700;" id="side-progress-txt">0.0 / 30</span>
           </div>
           <div class="progress-track"><div class="progress-fill" id="side-progress-bar"></div></div>
+
+          <div class="user-stats-list" id="user-breakdown-box"></div>
         </div>
 
         <div class="panel" style="margin-bottom: 0;">
@@ -332,7 +345,7 @@
             </div>
             <button class="btn-ghost" onclick="syncWithCloud(false)">🔄 Sync Now</button>
           </div>
-          <div id="history-container" style="color: var(--text-muted); font-size: 0.85rem; padding: 18px 0; text-align: center; max-height: 230px; overflow-y: auto;">
+          <div id="history-container" style="color: var(--text-muted); font-size: 0.85rem; padding: 18px 0; text-align: center; max-height: 280px; overflow-y: auto;">
             Syncing team history...
           </div>
         </div>
@@ -377,7 +390,6 @@
   </main>
 
 <script>
-  // Public Cloud KV Bucket for Zero-Setup Cross-Device Sync
   const CLOUD_BUCKET = '6N9p2K4x8V1m5Q7w3R9t2Y';
 
   const PHASES = {
@@ -404,6 +416,13 @@
   let bailed = false;
   let activeDeck = [];
   let deckIdx = 0;
+
+  // Normalizes "ayyan", "AYYAN", "Ayyan " -> "Ayyan"
+  function normalizeName(raw) {
+    const clean = (raw || '').trim().replace(/\s+/g, ' ');
+    if (!clean) return '';
+    return clean.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  }
 
   function getRoomClean() {
     return (document.getElementById('team-room-input').value.trim().toLowerCase() || 'maryam-team').replace(/[^a-z0-9-_]/g, '');
@@ -439,8 +458,9 @@
     const map = new Map();
     [...(localArr || []), ...(remoteArr || [])].forEach(item => {
       if (!item) return;
-      const id = item.id || `${item.user}_${item.date}_${item.score}`;
-      map.set(id, { ...item, id, ts: item.ts || 0 });
+      const normUser = normalizeName(item.user) || 'User';
+      const id = item.id || `${normUser.toLowerCase()}_${item.date}_${item.score}`;
+      map.set(id, { ...item, user: normUser, id, ts: item.ts || 0 });
     });
     return Array.from(map.values())
       .sort((a, b) => (b.ts || 0) - (a.ts || 0))
@@ -456,8 +476,9 @@
   }
 
   function saveLocalPrefs() {
-    const username = document.getElementById('username-input').value.trim();
-    if (username) localStorage.setItem('qm_saved_username', username);
+    const rawUser = document.getElementById('username-input').value;
+    const normUser = normalizeName(rawUser);
+    if (normUser) localStorage.setItem('qm_saved_username', normUser);
     localStorage.setItem('qm_saved_phase', String(activePhase));
     localStorage.setItem('qm_saved_room', getRoomClean());
     localStorage.setItem(getLocalKey(), JSON.stringify({ history, bottlenecks }));
@@ -465,7 +486,7 @@
 
   function loadLocalPrefs() {
     const savedUser = localStorage.getItem('qm_saved_username');
-    if (savedUser) document.getElementById('username-input').value = savedUser;
+    if (savedUser) document.getElementById('username-input').value = normalizeName(savedUser);
 
     const savedRoom = localStorage.getItem('qm_saved_room');
     if (savedRoom) document.getElementById('team-room-input').value = savedRoom;
@@ -480,7 +501,7 @@
       const cached = localStorage.getItem(getLocalKey());
       if (cached) {
         const parsed = JSON.parse(cached);
-        history = Array.isArray(parsed.history) ? parsed.history : [];
+        history = mergeHistories(parsed.history, []);
         bottlenecks = Array.isArray(parsed.bottlenecks) ? parsed.bottlenecks : [];
       }
     } catch (e) {}
@@ -498,9 +519,7 @@
         history = mergeHistories(history, remoteData.history);
         bottlenecks = mergeBottlenecks(bottlenecks, remoteData.bottlenecks);
       }
-    } catch (e) {
-      // Cloud key might not exist yet or offline
-    }
+    } catch (e) {}
 
     saveLocalPrefs();
     refreshStats();
@@ -611,12 +630,13 @@
   }
 
   function startDrill() {
-    const username = document.getElementById('username-input').value.trim();
-    if (!username) {
+    const normUser = normalizeName(document.getElementById('username-input').value);
+    if (!normUser) {
       alert('Please enter your User Name before starting the drill!');
       document.getElementById('username-input').focus();
       return;
     }
+    document.getElementById('username-input').value = normUser;
     saveLocalPrefs();
     score = 0;
     timeLeft = +document.getElementById('duration-sel').value || 120;
@@ -641,7 +661,8 @@
     document.getElementById('setup-panel').style.display = 'block';
     if (saveRun) {
       const now = new Date();
-      const user = document.getElementById('username-input').value.trim() || 'User';
+      const user = normalizeName(document.getElementById('username-input').value) || 'User';
+      document.getElementById('username-input').value = user;
       const stamp = `${now.toLocaleDateString([], { month: 'short', day: 'numeric' })} • ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
       const newEntry = {
         id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -659,6 +680,9 @@
   }
 
   function refreshStats() {
+    // Ensure all loaded history items have normalized user names
+    history = history.map(r => ({ ...r, user: normalizeName(r.user) || 'User' }));
+
     const goal = PHASES[activePhase].goal;
     const recent7 = history.slice(0, 7);
     const avg = recent7.length ? (recent7.reduce((s, x) => s + x.score, 0) / recent7.length).toFixed(1) : '0.0';
@@ -668,6 +692,59 @@
     document.getElementById('side-progress-bar').style.width = `${Math.min(100, (avg / goal) * 100)}%`;
     document.getElementById('total-runs-count').textContent = history.length;
 
+    // Group scores by normalized user name
+    const userMap = {};
+    history.forEach(r => {
+      const u = r.user;
+      if (!userMap[u]) userMap[u] = [];
+      userMap[u].push(r.score);
+    });
+
+    const userNames = Object.keys(userMap);
+
+    // Populate Topbar Individual User Averages
+    const topUsersEl = document.getElementById('top-user-averages');
+    if (userNames.length > 0) {
+      topUsersEl.innerHTML = userNames.map(u => {
+        const scores = userMap[u];
+        const uRecent7 = scores.slice(0, 7);
+        const uAvg = (uRecent7.reduce((a, b) => a + b, 0) / uRecent7.length).toFixed(1);
+        return `<div class="metric-col">
+          <div class="metric-label">${u.toUpperCase()} AVG</div>
+          <div class="metric-val emerald">${uAvg}</div>
+        </div>`;
+      }).join('');
+    } else {
+      topUsersEl.innerHTML = '';
+    }
+
+    // Populate Left Panel Per-User Breakdown
+    const breakdownBox = document.getElementById('user-breakdown-box');
+    if (userNames.length > 0) {
+      breakdownBox.innerHTML = `<div style="font-family: var(--mono); font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">Individual User Averages</div>` +
+        userNames.map(u => {
+          const scores = userMap[u];
+          const uRecent7 = scores.slice(0, 7);
+          const uAvg7 = (uRecent7.reduce((a, b) => a + b, 0) / uRecent7.length).toFixed(1);
+          const uAllAvg = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);
+          const uBest = Math.max(...scores);
+          return `<div class="user-stat-card">
+            <div>
+              <span class="user-stat-name">${u}</span>
+              <span class="user-stat-runs">(${scores.length} ${scores.length === 1 ? 'run' : 'runs'})</span>
+            </div>
+            <div class="user-stat-metrics">
+              <span>7d Avg: <b style="color:var(--green-text);">${uAvg7}</b></span>
+              <span>All: <b>${uAllAvg}</b></span>
+              <span>Best: <b style="color:var(--red-text);">${uBest}</b></span>
+            </div>
+          </div>`;
+        }).join('');
+    } else {
+      breakdownBox.innerHTML = '';
+    }
+
+    // Populate History Table
     const hBox = document.getElementById('history-container');
     if (!history.length) {
       hBox.innerHTML = 'No team drills recorded yet. Run your first round!';
@@ -675,7 +752,7 @@
       hBox.innerHTML = `<table class="history-table">
         <thead><tr><th>User</th><th>Date</th><th>Phase</th><th>Score</th></tr></thead>
         <tbody>${history.map(r => `<tr>
-          <td style="color:var(--text-main); font-weight:700;">${r.user || 'User'}</td>
+          <td style="color:var(--text-main); font-weight:700;">${r.user}</td>
           <td style="color:var(--text-muted);">${r.date}</td>
           <td>${r.phase}</td>
           <td style="color:var(--red-text);font-weight:700;">${r.score}</td>
@@ -739,7 +816,6 @@
     showDojoCard();
   }
 
-  // Initialize Local State & Trigger Cloud Sync + 20s Auto-Poll
   loadLocalPrefs();
   syncWithCloud(false);
   setInterval(() => {
