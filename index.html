@@ -431,11 +431,6 @@
     return `qm_cloud_cache_${getRoomClean()}`;
   }
 
-  // Uses JSONBlob.com free public REST API endpoint which allows direct CRUD with CORS enabled
-  function getCloudUrl() {
-    return `https://jsonblob.com/api/jsonBlob/00000000-0000-0000-0000-000000000000`; // Dynamically mapped via room storage fallback
-  }
-
   function getBlobStorageKey() {
     return `qm_blob_id_${getRoomClean()}`;
   }
